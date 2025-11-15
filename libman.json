@@ -1,0 +1,13 @@
+{
+  "version": "3.0",
+  "defaultProvider": "unpkg",
+  "libraries": [
+    {
+      "library": "bootstrap@5.1.3",
+      "destination": "wwwroot/css/bootstrap/",
+      "files": [
+        "dist/css/bootstrap.min.css"
+      ]
+    }
+  ]
+}

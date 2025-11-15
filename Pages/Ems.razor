@@ -1,0 +1,1026 @@
+﻿@page "/ems"
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using ChangeEventArgs = Microsoft.AspNetCore.Components.ChangeEventArgs
+
+@* JSRuntime is now injected in the @code block *@
+
+<h3>Enquiry Management System</h3>
+<br />
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <button class="@GetTabClass("New")" @onclick="OnClickTabNew">New Enquiry</button>
+    </li>
+    <li class="nav-item">
+        <button class="@GetTabClass("Modify")" @onclick="OnClickTabModify">Modify Enquiry</button>
+    </li>
+    <li class="nav-item">
+        <button class="@GetTabClass("Search")" @onclick="OnClickTabSearch">Search Enquiry</button>
+    </li>
+</ul>
+<br />
+
+@* ---------------- NEW ENQUIRY ---------------- *@
+@if (activeTab == "New")
+{
+    <EditForm Model="@enquiryModel" OnValidSubmit="@HandleMainFormSubmit">
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Source of Enquiry<span class="text-danger">*</span></label>
+                <InputSelect class="form-select" @bind-Value="enquiryModel.SourceOfInfo" style="font-size: 13px;">
+                    <option value="">-- Select Source --</option>
+                    @foreach (var source in sourceOfInfos)
+                    {
+                        <option value="@source">@source</option>
+                    }
+                </InputSelect>
+                @if (inputErrors.ContainsKey("SourceOfInfo"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["SourceOfInfo"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-1">
+                <label class="form-label" style="font-size: 13px;"> Enquiry Date <span class="text-danger">*</span></label>
+                <InputDate class="form-control" @bind-Value="enquiryModel.EnquiryDate" style="font-size: 13px;" />
+                @if (inputErrors.ContainsKey("EnquiryDate"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["EnquiryDate"]</div>
+                }
+            </div>
+            <div class="col-md-1">
+                <label class="form-label" style="font-size: 13px;">Due Date<span class="text-danger">*</span></label>
+                <InputDate class="form-control" @bind-Value="enquiryModel.DueOn" style="font-size: 13px;" />
+                @if (inputErrors.ContainsKey("DueOn"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["DueOn"]</div>
+                }
+            </div>
+            <div class="col-md-1">
+                <label class="form-label" style="font-size: 13px;">Site visit date (If applicable)</label>
+                <InputDate class="form-control" @bind-Value="enquiryModel.SiteVisitDate" style="font-size: 13px;" />
+                @if (inputErrors.ContainsKey("SiteVisitDate"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["SiteVisitDate"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Enquiry Type<span class="text-danger">*</span></label>
+                <InputSelect class="form-select" @bind-Value="selectedenqtype" style="font-size: 13px;">
+                    <option value="">-- Select type --</option>
+                    @foreach (var et in enquirytype)
+                    {
+                        <option value="@et">@et</option>
+                    }
+                </InputSelect>
+                <div class="d-flex align-items-center mt-1">
+                    <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleEnqTypeListBoxSelection">
+                        @foreach (var item in enqtypelistbox)
+                        {
+                            <option value="@item">@item</option>
+                        }
+                    </select>
+                    @* --- BUTTONS MOVED HERE --- *@
+                    <div class="d-flex flex-column ms-1">
+                        <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddToListBoxenqtype">+</button>
+                        <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveFromListBoxenqtype">-</button>
+                    </div>
+                </div>
+                @if (inputErrors.ContainsKey("Enquirytype"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquirytype"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Enquiry for<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <InputText id="enquiryForInput" class="form-control" @bind-Value="selectedenqfor" style="font-size: 13px;"
+                               list="enquiryForList"
+                               @onblur="OnEnquiryForBlur" />
+                    <datalist id="enquiryForList">
+                        @foreach (var item in enquiryfor)
+                        {
+                            <option value="@item"></option>
+                        }
+                    </datalist>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewEnquiryForModal">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;"
+                            @onclick="StartEditEnquiryFor" disabled="@(string.IsNullOrWhiteSpace(selectedenqfor))">
+                        Edit
+                    </button>
+                </div>
+                @if (inputErrors.ContainsKey("Enquiryfor") && inputErrors["Enquiryfor"] == NO_DATA_FOUND)
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquiryfor"]</div>
+                }
+                <div class="d-flex align-items-center mt-1">
+                    <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleEnqForListBoxSelection">
+                        @foreach (var item in enqforlistbox)
+                        {
+                            <option value="@item">@item</option>
+                        }
+                    </select>
+                    <div class="d-flex flex-column ms-1">
+                        <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddToListBoxenqfor">+</button>
+                        <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveFromListBoxenqfor">-</button>
+                    </div>
+                </div>
+                @if (inputErrors.ContainsKey("Enquiryfor") && inputErrors["Enquiryfor"] != NO_DATA_FOUND)
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquiryfor"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Customer Name (Company Name)<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <InputSelect class="form-select" @bind-Value="selectedCustomerInput" style="font-size: 13px;">
+                        <option value="">-- Select Customer Company --</option>
+                        @foreach (var c in existingCustomers)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </InputSelect>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewCustomerInput">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="StartEditCompany" disabled="@(string.IsNullOrWhiteSpace(selectedCustomerInput))">Edit</button>
+                </div>
+                @if (inputErrors.ContainsKey("CustomerName"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["CustomerName"]</div>
+                }
+                <div class="d-flex align-items-center mt-1">
+                    <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleCustomerListBoxSelection">
+                        @foreach (var item in listBoxCustomers)
+                        {
+                            <option value="@item">@item</option>
+                        }
+                    </select>
+                    @* --- New Add/Remove buttons for Customer --- *@
+                    <div class="d-flex flex-column ms-1">
+                        <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddCustomerToListBox">+</button>
+                        <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveCustomerFromListBox">-</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Received From (Contact Person)<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <InputSelect id="receivedContactSelect" class="form-select" @bind-Value="selectedReceivedContact" style="font-size: 13px;">
+                        <option value="">-- Select Contact --</option>
+                        @foreach (var contact in filteredReceivedFroms)
+                        {
+                            <option value="@($"{contact.ContactName}{CONTACT_DELIMITER}{contact.CompanyName}")">@($"{contact.ContactName} ({contact.CompanyName})")</option>
+                        }
+                    </InputSelect>
+
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewReceivedFromInput">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;"
+                            @onclick="StartEditContact" disabled="@(!HasAnyContactSelection)">
+                        Edit
+                    </button>
+                </div>
+                @if (inputErrors.ContainsKey("ReceivedFrom"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["ReceivedFrom"]</div>
+                }
+                <div class="d-flex align-items-center mt-1">
+                    <select class="form-select" multiple style="height: 70px; font-size: 13px;" @onchange="HandleReceivedFromListBoxSelection">
+                        @foreach (var item in receivedContactListBox.Select((p, index) => new { Index = index + 1, Company = p.Split(CONTACT_DELIMITER)[1], Contact = p.Split(CONTACT_DELIMITER)[0], FullString = p }))
+                        {
+                            <option value="@item.FullString">@item.Index. @item.Contact (@item.Company)</option>
+                        }
+                    </select>
+                    <div class="d-flex flex-column ms-1">
+                        <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddSelectedContactToListBox">+</button>
+                        <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveSelectedContactFromListBox">-</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Project Name<span class="text-danger">*</span></label>
+                <InputText id="projectNameInput" class="form-control" @bind-Value="enquiryModel.ProjectName" style="font-size: 13px;"
+                           list="projectNameList"
+                           @onblur="OnProjectNameBlur" />
+                <datalist id="projectNameList">
+                    @foreach (var client in projectNames)
+                    {
+                        <option value="@client"></option>
+                    }
+                </datalist>
+                @if (inputErrors.ContainsKey("ProjectName"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["ProjectName"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Client Name<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <InputText id="clientNameInput" class="form-control" @bind-Value="enquiryModel.ClientName" style="font-size: 13px;"
+                               list="clientNameList"
+                               @onblur="OnClientNameBlur" />
+                    <datalist id="clientNameList">
+                        @foreach (var client in clientNames)
+                        {
+                            <option value="@client"></option>
+                        }
+                    </datalist>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewCustomerInput">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="StartEditCompany" disabled="@(string.IsNullOrWhiteSpace(enquiryModel.ClientName))">Edit</button>
+                </div>
+                @if (inputErrors.ContainsKey("ClientName"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["ClientName"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Consultant Name</label>
+                <div class="input-group">
+                    <InputText id="consultantNameInput" class="form-control" @bind-Value="enquiryModel.ConsultantName" style="font-size: 13px;"
+                               list="consultantNameList"
+                               @onblur="OnConsultantNameBlur" />
+                    <datalist id="consultantNameList">
+                        @foreach (var consultant in consultantNames)
+                        {
+                            <option value="@consultant"></option>
+                        }
+                    </datalist>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewCustomerInput">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="StartEditCompany" disabled="@(string.IsNullOrWhiteSpace(enquiryModel.ConsultantName))">Edit</button>
+                </div>
+                @if (inputErrors.ContainsKey("ConsultantName"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["ConsultantName"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Concerned SE<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <InputText id="concernedSEInput" class="form-control" @bind-Value="selectedSE" style="font-size: 13px;"
+                               list="concernedSEList"
+                               @onblur="OnConcernedSEBlur" />
+                    <datalist id="concernedSEList">
+                        @foreach (var se in concernedSEs)
+                        {
+                            <option value="@se"></option>
+                        }
+                    </datalist>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewUserModal">New</button>
+                    <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;"
+                            @onclick="StartEditUser" disabled="@(string.IsNullOrWhiteSpace(selectedSE))">
+                        Edit
+                    </button>
+                </div>
+                @if (inputErrors.ContainsKey("ConcernedSE"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["ConcernedSE"]</div>
+                }
+                <div class="d-flex align-items-center mt-1">
+                    <select class="form-select" multiple style="height: 70px; font-size: 13px;" @onchange="HandleSEListBoxSelection">
+                        @foreach (var se in seListBox)
+                        {
+                            <option value="@se">@se</option>
+                        }
+                    </select>
+                    <div class="d-flex flex-column ms-1">
+                        <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddSEToListBoxToselectedSE">+</button>
+                        <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveSEFromListBoxselectedSE">-</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Enquiry details<span class="text-danger">*</span></label>
+                <InputTextArea class="form-control" @bind-Value="enquiryModel.DetailsOfEnquiry" />
+                @if (inputErrors.ContainsKey("DetailsOfEnquiry"))
+                {
+                    <div class="text-danger" style="font-size: 11px;">@inputErrors["DetailsOfEnquiry"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Document received along with the enquiry</label>
+                <div class="d-flex flex-wrap gap-2 mb-2" style="font-size: 13px;">
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.hardcopy" id="hardcopyCheck" />
+                        <label class="form-check-label" for="hardcopyCheck">Hard Copies</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.drawing" id="drawingCheck" />
+                        <label class="form-check-label" for="drawingCheck">Drawings</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.dvd" id="dvdCheck" />
+                        <label class="form-check-label" for="dvdCheck">CD/DVD</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.spec" id="specCheck" />
+                        <label class="form-check-label" for="specCheck">Specification</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.eqpschedule" id="eqpscheduleCheck" />
+                        <label class="form-check-label" for="eqpscheduleCheck">Equipment Schedule</label>
+                    </div>
+                </div>
+                <label class="form-label" style="font-size: 13px;">Others Specify</label>
+                <InputTextArea class="form-control" @bind-Value="enquiryModel.DocumentsReceived" />
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 13px;">Remarks</label>
+                <InputTextArea class="form-control" @bind-Value="enquiryModel.Remark" />
+            </div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <div class="form-check" style="font-size: 13px;">
+                    <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.AutoAck" id="autoAckCheck" />
+                    <label class="form-check-label" for="autoAckCheck">Is it necessary to send an acknowledgement mail to the customer ?</label>
+                </div>
+                <div class="form-check" style="font-size: 13px;">
+                    <InputCheckbox class="form-check-input" @bind-Value="enquiryModel.ceosign" id="ceoSignCheck" />
+                    <label class="form-check-label" for="ceoSignCheck">Is ED/CEO Signature required ? </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4 mb-4" style="padding-bottom: 100px;">
+            <div class="col-12">
+                <button type="submit" class="btn btn-outline-success me-2"><i class="bi bi-plus-circle"></i> Add</button>
+                <button type="button" class="btn btn-outline-danger me-2" @onclick="ResetFormState"><i class="bi bi-x-circle"></i> Cancel</button>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@* ---------------- MODIFY ENQUIRY ---------------- *@
+@if (activeTab == "Modify")
+{
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label class="form-label" style="font-size:13px;">Request No<span class="text-danger">*</span></label>
+            <InputText class="form-control" @bind-Value="modifyRequestNo" placeholder="e.g. EYS/2025/11/001" />
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-outline-primary me-2" @onclick="LoadForModify">Load</button>
+            <button class="btn btn-outline-secondary" @onclick="ClearModify">Clear</button>
+        </div>
+    </div>
+
+    @if (modifyLoadedSnapshot is not null)
+    {
+        <div class="alert alert-info py-2" style="font-size:13px;">
+            Loaded <strong>@modifyRequestNo</strong>. You can edit below and click <em>Save Changes</em>.
+        </div>
+
+        <EditForm Model="@enquiryModel" OnValidSubmit="@HandleModifyFormSubmit">
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 13px;">Source of Enquiry<span class="text-danger">*</span></label>
+                    <InputSelect class="form-select" @bind-Value="enquiryModel.SourceOfInfo" style="font-size: 13px;">
+                        <option value="">-- Select Source --</option>
+                        @foreach (var source in sourceOfInfos)
+                        {
+                            <option value="@source">@source</option>
+                        }
+                    </InputSelect>
+                    @if (inputErrors.ContainsKey("SourceOfInfo"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["SourceOfInfo"]</div>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-1">
+                    <label class="form-label" style="font-size: 13px;"> Enquiry Date <span class="text-danger">*</span></label>
+                    <InputDate class="form-control" @bind-Value="enquiryModel.EnquiryDate" style="font-size: 13px;" />
+                    @if (inputErrors.ContainsKey("EnquiryDate"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["EnquiryDate"]</div>
+                    }
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label" style="font-size: 13px;">Due Date<span class="text-danger">*</span></label>
+                    <InputDate class="form-control" @bind-Value="enquiryModel.DueOn" style="font-size: 13px;" />
+                    @if (inputErrors.ContainsKey("DueOn"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["DueOn"]</div>
+                    }
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label" style="font-size: 13px;">Site visit date (If applicable)</label>
+                    <InputDate class="form-control" @bind-Value="enquiryModel.SiteVisitDate" style="font-size: 13px;" />
+                    @if (inputErrors.ContainsKey("SiteVisitDate"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["SiteVisitDate"]</div>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 13px;">Enquiry Type<span class="text-danger">*</span></label>
+                    <InputSelect class="form-select" @bind-Value="selectedenqtype" style="font-size: 13px;">
+                        <option value="">-- Select type --</option>
+                        @foreach (var et in enquirytype)
+                        {
+                            <option value="@et">@et</option>
+                        }
+                    </InputSelect>
+                    <div class="d-flex align-items-center mt-1">
+                        <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleEnqTypeListBoxSelection">
+                            @foreach (var item in enqtypelistbox)
+                            {
+                                <option value="@item">@item</option>
+                            }
+                        </select>
+                        @* --- BUTTONS MOVED HERE --- *@
+                        <div class="d-flex flex-column ms-1">
+                            <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddToListBoxenqtype">+</button>
+                            <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveFromListBoxenqtype">-</button>
+                        </div>
+                    </div>
+                    @if (inputErrors.ContainsKey("Enquirytype"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquirytype"]</div>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 13px;">Enquiry for<span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <InputText id="enquiryForInput_M" class="form-control" @bind-Value="selectedenqfor" style="font-size: 13px;"
+                                   list="enquiryForList"
+                                   @onblur="OnEnquiryForBlur" />
+                        <datalist id="enquiryForList">
+                            @foreach (var item in enquiryfor)
+                            {
+                                <option value="@item"></option>
+                            }
+                        </datalist>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewEnquiryForModal">New</button>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;"
+                                @onclick="StartEditEnquiryFor" disabled="@(string.IsNullOrWhiteSpace(selectedenqfor))">
+                            Edit
+                        </button>
+                    </div>
+                    @if (inputErrors.ContainsKey("Enquiryfor") && inputErrors["Enquiryfor"] == NO_DATA_FOUND)
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquiryfor"]</div>
+                    }
+                    <div class="d-flex align-items-center mt-1">
+                        <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleEnqForListBoxSelection">
+                            @foreach (var item in enqforlistbox)
+                            {
+                                <option value="@item">@item</option>
+                            }
+                        </select>
+                        <div class="d-flex flex-column ms-1">
+                            <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddToListBoxenqfor">+</button>
+                            <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveFromListBoxenqfor">-</button>
+                        </div>
+                    </div>
+                    @if (inputErrors.ContainsKey("Enquiryfor") && inputErrors["Enquiryfor"] != NO_DATA_FOUND)
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["Enquiryfor"]</div>
+                    }
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 13px;">Customer Name (Company Name)<span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <InputSelect class="form-select" @bind-Value="selectedCustomerInput" style="font-size: 13px;">
+                            <option value="">-- Select Customer Company --</option>
+                            @foreach (var c in existingCustomers)
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </InputSelect>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewCustomerInput">New</button>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="StartEditCompany" disabled="@(string.IsNullOrWhiteSpace(selectedCustomerInput))">Edit</button>
+                    </div>
+                    @if (inputErrors.ContainsKey("CustomerName"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["CustomerName"]</div>
+                    }
+                    <div class="d-flex align-items-center mt-1">
+                        <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleCustomerListBoxSelection">
+                            @foreach (var item in listBoxCustomers)
+                            {
+                                <option value="@item">@item</option>
+                            }
+                        </select>
+                        <div class="d-flex flex-column ms-1">
+                            <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddCustomerToListBox">+</button>
+                            <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveCustomerFromListBox">-</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 13px;">Received From (Contact Person)<span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <InputSelect id="receivedContactSelect_M" class="form-select" @bind-Value="selectedReceivedContact" style="font-size: 13px;">
+                            <option value="">-- Select Contact --</option>
+                            @foreach (var contact in filteredReceivedFroms)
+                            {
+                                <option value="@($"{contact.ContactName}{CONTACT_DELIMITER}{contact.CompanyName}")">@($"{contact.ContactName} ({contact.CompanyName})")</option>
+                            }
+                        </InputSelect>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;" @onclick="ToggleNewReceivedFromInput">New</button>
+                        <button type="button" class="btn" style="font-size: 12px; padding: 0.25rem 0.5rem; background-color: #f0f0f0; color: black; border-color: #ccc;"
+                                @onclick="StartEditContact" disabled="@(!HasAnyContactSelection)">
+                            Edit
+                        </button>
+                    </div>
+                    @if (inputErrors.ContainsKey("ReceivedFrom"))
+                    {
+                        <div class="text-danger" style="font-size: 11px;">@inputErrors["ReceivedFrom"]</div>
+                    }
+                    <div class="d-flex align-items-center mt-1">
+                        <select class="form-select" multiple style="height: 70px; font-size: 13px;" @onchange="HandleReceivedFromListBoxSelection">
+                            @foreach (var item in receivedContactListBox.Select((p, index) => new { Index = index + 1, Company = p.Split(CONTACT_DELIMITER)[1], Contact = p.Split(CONTACT_DELIMITER)[0], FullString = p }))
+                            {
+                                <option value="@item.FullString">@item.Index. @item.Contact (@item.Company)</option>
+                            }
+                        </select>
+                        <div class="d-flex flex-column ms-1">
+                            <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddSelectedContactToListBox">+</button>
+                            <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveSelectedContactFromListBox">-</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4 mb-4" style="padding-bottom: 100px;">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-outline-success me-2"><i class="bi bi-save"></i> Save Changes</button>
+                    <button type="button" class="btn btn-outline-danger me-2" @onclick="ClearModify"><i class="bi bi-x-circle"></i> Cancel</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+}
+
+@* ---------------- SEARCH ENQUIRY ---------------- *@
+@if (activeTab == "Search")
+{
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <label class="form-label" style="font-size:13px;">Search text</label>
+            <InputText class="form-control" @bind-Value="searchText" placeholder="Request No / Client / Project / SE" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:13px;">From date</label>
+            <InputDate class="form-control" @bind-Value="searchFromDate" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:13px;">To date</label>
+            <InputDate class="form-control" @bind-Value="searchToDate" />
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-outline-primary me-2" @onclick="RunSearch"><i class="bi bi-search"></i> Search</button>
+            <button class="btn btn-outline-secondary" @onclick="ClearSearch">Clear</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Request No</th>
+                    <th>Enquiry Date</th>
+                    <th>Client</th>
+                    <th>Project</th>
+                    <th>Source</th>
+                    <th>Due</th>
+                    <th>SE(s)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (searchResults.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-muted">No results.</td></tr>
+                }
+                else
+                {
+                    @foreach (var r in searchResults)
+                    {
+                        <tr>
+                            <td>@r.RequestNo</td>
+                            <td>@(r.EnquiryDate?.ToString("yyyy-MM-dd"))</td>
+                            <td>@r.ClientName</td>
+                            <td>@r.ProjectName</td>
+                            <td>@r.SourceOfInfo</td>
+                            <td>@(r.DueOn?.ToString("yyyy-MM-dd"))</td>
+                            <td>@string.Join(", ", r.SelectedConcernedSEs)</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="@(() => OpenInModify(r.RequestNo))">
+                                    Open
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="modal @(showCustomerModal ? "d-block show" : "")" tabindex="-1" role="dialog" style="display: @(showCustomerModal ? "block" : "none"); background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">CCC Details (@(modalMode == "Add" ? "New" : "Edit") Customer/Client/Consultant)</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseCustomerModal"></button>
+            </div>
+            <EditForm Model="@newCustomerCompany" OnValidSubmit="HandleNewCompanySubmit">
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Category</label>
+                            <InputSelect class="form-select" @bind-Value="newCustomerCompany.Category" style="font-size: 13px;">
+                                <option>Contractor</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Company Name<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.CompanyName" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Address 1<span class="text-danger">*</span></label>
+                            <InputTextArea class="form-control" @bind-Value="newCustomerCompany.Address1" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Address 2</label>
+                            <InputTextArea class="form-control" @bind-Value="newCustomerCompany.Address2" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Rating</label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.Rating" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Type</label>
+                            <InputSelect class="form-select" @bind-Value="newCustomerCompany.Type" style="font-size: 13px;">
+                                <option value="">-- Select Type --</option>
+                                @foreach (var t in consultantTypeOptions)
+                                {
+                                    <option value="@t">@t</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Fax No.</label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.FaxNo" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Phone 1<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.Phone1" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Phone 2</label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.Phone2" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">E-Mail ID</label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.MailId" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Website</label>
+                            <InputText class="form-control" @bind-Value="newCustomerCompany.Website" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Status</label>
+                            <InputSelect class="form-select" @bind-Value="newCustomerCompany.Status" style="font-size: 13px;">
+                                <option>Active</option>
+                                <option>Inactive</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (modalMode == "Add")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Add</button>
+                    }
+                    else if (modalMode == "Edit")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Update</button>
+                    }
+                    <button type="button" class="btn btn-danger" style="width: 80px;" @onclick="CloseCustomerModal">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+<div class="modal @(showContactModal ? "d-block show" : "")" tabindex="-1" role="dialog" style="display: @(showContactModal ? "block" : "none"); background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Contact Person Details (@(modalMode == "Add" ? "New" : "Edit") Contact Person)</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseContactModal"></button>
+            </div>
+            <EditForm Model="@modalContactPerson" OnValidSubmit="HandleNewContactSubmit">
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Category</label>
+                            <InputSelect class="form-select" @bind-Value="modalContactPerson.Category" style="font-size: 13px;">
+                                <option>Contractor</option>
+                                <option>Client</option>
+                                <option>Consultant</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Company Name<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.CompanyName" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Contact Person Name<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.ContactName" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Designation</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.Designation" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Category of Designation</label>
+                            <InputSelect class="form-select" @bind-Value="modalContactPerson.CategoryOfDesignation" style="font-size: 13px;">
+                                <option>Technical</option>
+                                <option>General</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Address 1<span class="text-danger">*</span></label>
+                            <InputTextArea class="form-control" @bind-Value="modalContactPerson.Address1" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Address 2</label>
+                            <InputTextArea class="form-control" @bind-Value="modalContactPerson.Address2" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Fax No.</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.FaxNo" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Phone</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.Phone" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Mobile 1</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.Mobile1" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Mobile 2</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.Mobile2" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">E-Mail ID</label>
+                            <InputText class="form-control" @bind-Value="modalContactPerson.EmailId" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (modalMode == "Add")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Add</button>
+                    }
+                    else if (modalMode == "Edit")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Update</button>
+                    }
+                    <button type="button" class="btn btn-danger" style="width: 80px;" @onclick="OnCancelContact">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+<div class="modal @(showUserModal ? "d-block show" : "")" tabindex="-1" role="dialog" style="display: @(showUserModal ? "block" : "none"); background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details (@(modalMode == "Add" ? "New" : "Edit") User)</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseUserModal"></button>
+            </div>
+            <EditForm Model="@newUserModel" OnValidSubmit="HandleNewUserSubmit">
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Full Name<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newUserModel.FullName" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Designation</label>
+                            <InputText class="form-control" @bind-Value="newUserModel.Designation" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">E-Mail ID<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newUserModel.MailId" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Login Password<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newUserModel.LoginPassword" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Status</label>
+                            <InputSelect class="form-select" @bind-Value="newUserModel.Status" style="font-size: 13px;">
+                                <option>Active</option>
+                                <option>Inactive</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Department</label>
+                            <InputSelect class="form-select" @bind-Value="newUserModel.Department" style="font-size: 13px;">
+                                <option>MEP</option>
+                                <option>Civil</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Roles</label>
+                            <InputSelect class="form-select mb-1" @bind-Value="newRoleEntry" style="font-size: 13px;">
+                                <option value="">-- Select Role --</option>
+                                @foreach (var role in availableRoles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </InputSelect>
+                            <div class="d-flex align-items-center mt-1">
+                                <select class="form-select" multiple style="height: 70px; font-size: 13px;" @onchange="HandleRoleListBoxSelection">
+                                    @foreach (var role in newUserModel.Roles)
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                </select>
+                                <div class="d-flex flex-column ms-1">
+                                    <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddRoleToListBox">+</button>
+                                    <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveRoleFromListBox">-</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (modalMode == "Add")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Add</button>
+                    }
+                    else if (modalMode == "Edit")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Update</button>
+                    }
+                    <button type="button" class="btn btn-danger" style="width: 80px;" @onclick="CloseUserModal">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+<div class="modal @(showEnqForModal ? "d-block show" : "")" tabindex="-1" role="dialog" style="display: @(showEnqForModal ? "block" : "none"); background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enquiry For Item Details (@(modalMode == "Add" ? "New" : "Edit") Item)</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseEnqForModal"></button>
+            </div>
+            <EditForm Model="@newEnquiryForItem" OnValidSubmit="HandleNewEnquiryForItemSubmit">
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Item Name<span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newEnquiryForItem.ItemName" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Company Name (Dept)</label>
+                            <InputText class="form-control" @bind-Value="newEnquiryForItem.CompanyName" style="font-size: 13px;" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Department Name</label>
+                            <InputText class="form-control" @bind-Value="newEnquiryForItem.DepartmentName" style="font-size: 13px;" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size: 13px;">Status</label>
+                            <InputSelect class="form-select" @bind-Value="newEnquiryForItem.Status" style="font-size: 13px;">
+                                <option>Active</option>
+                                <option>Inactive</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">Common mail ID to send notification</label>
+                            <InputText id="commonMailInput" class="form-control" @bind-Value="newCommonMailEntry" style="font-size: 13px;" placeholder="Enter email address" />
+                            <div class="d-flex align-items-center mt-1">
+                                <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleCommonMailListBoxSelection">
+                                    @foreach (var item in newEnquiryForItem.CommonMailIds)
+                                    {
+                                        <option value="@item">@item</option>
+                                    }
+                                </select>
+                                <div class="d-flex flex-column ms-1">
+                                    <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddCommonMailToListBox">+</button>
+                                    <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveCommonMailFromListBox">-</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size: 13px;">CC mail ID to send notification</label>
+                            <InputText id="ccMailInput" class="form-control" @bind-Value="newCCMailEntry" style="font-size: 13px;" placeholder="Enter email address" />
+                            <div class="d-flex align-items-center mt-1">
+                                <select class="form-select" multiple style="height: 75px; font-size: 13px;" @onchange="HandleCCMailListBoxSelection">
+                                    @foreach (var item in newEnquiryForItem.CCMailIds)
+                                    {
+                                        <option value="@item">@item</option>
+                                    }
+                                </select>
+                                <div class="d-flex flex-column ms-1">
+                                    <button type="button" class="btn btn-outline-success mb-1" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="AddCCMailToListBox">+</button>
+                                    <button type="button" class="btn btn-outline-danger" style="width: 36px; padding: 0.25rem 0.5rem;" @onclick="RemoveCCMailFromListBox">-</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (modalMode == "Add")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Add</button>
+                    }
+                    else if (modalMode == "Edit")
+                    {
+                        <button type="submit" class="btn btn-primary" style="width: 80px;">Update</button>
+                    }
+                    <button type="button" class="btn btn-danger" style="width: 80px;" @onclick="CloseEnqForModal">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>

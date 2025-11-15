@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<!-- Target .NET 7 -->
+		<TargetFramework>net7.0</TargetFramework>
+
+		<!-- Helpful defaults -->
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- EF Core 7 (compatible with net7.0) -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.12" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.12">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+
+		<!-- Optional but common for Blazor Server apps -->
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="7.0.12" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="wwwroot\css\bootstrap\dist\css\" />
+	</ItemGroup>
+
+	<!-- If you use EF tools from CLI, keep Tools in DotNetCliToolReference section is not required for SDK-style projects -->
+</Project>
