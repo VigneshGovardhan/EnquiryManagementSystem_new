@@ -4,20 +4,29 @@
     <div class="sidebar">
         <nav>
             <ul>
-                <li><a href="">Home</a></li>
-                <li><a href="ems">Enquiry</a></li>
+                <li><a href="/dashboard" class="@(IsActive("/dashboard") ? "active" : "")">Dashboard</a></li>
+                <li><a href="/ems" class="@(IsActive("/ems") ? "active" : "")">Enquiry Management</a></li>
             </ul>
         </nav>
     </div>
     <div class="main">
-        <div class="content px-4">
+        <div class="content">
             @Body
         </div>
     </div>
 </div>
 
-<style>
-.page { display:flex; min-height:100vh; }
-.sidebar { width:200px; background:#f7f7f7; padding:20px; }
-.main { flex:1; }
-</style>
+@code {
+    private string? currentPath;
+
+    protected override void OnInitialized()
+    {
+        // Get current path from navigation manager if available
+    }
+
+    private string IsActive(string path)
+    {
+        return currentPath == path ? "active" : "";
+    }
+}
+

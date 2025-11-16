@@ -1,0 +1,209 @@
+@page "/dashboard"
+@using System.Globalization
+
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Enquiry Management System Overview</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-card-title">Total Enquiries</div>
+            <p class="stats-card-value">@totalEnquiries</p>
+            <div class="stats-card-change positive">+12% this month</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-card-title">Pending Quotations</div>
+            <p class="stats-card-value">@pendingQuotations</p>
+            <div class="stats-card-change">Due: @nextDueDate?.ToString("MMM dd")</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-card-title">Active Companies</div>
+            <p class="stats-card-value">@activeCompanies</p>
+            <div class="stats-card-change positive">+2 new this week</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-card-title">Active Users</div>
+            <p class="stats-card-value">@activeUsers</p>
+            <div class="stats-card-change">Sales Engineers</div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="form-card">
+            <h3 class="form-section-title">Recent Enquiries</h3>
+            @if (recentEnquiries.Count == 0)
+            {
+                <p class="text-muted">No enquiries yet. Create your first enquiry to get started.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Request No</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var enq in recentEnquiries.Take(5))
+                            {
+                                <tr>
+                                    <td><strong>@enq.RequestNo</strong></td>
+                                    <td>@enq.ClientName</td>
+                                    <td>@enq.EnquiryDate?.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="badge badge-info">@enq.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="form-card">
+            <h3 class="form-section-title">Top Customers</h3>
+            @if (topCustomers.Count == 0)
+            {
+                <p class="text-muted">No customer data available yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Category</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var company in topCustomers.Take(5))
+                            {
+                                <tr>
+                                    <td><strong>@company.CompanyName</strong></td>
+                                    <td>@company.Category</td>
+                                    <td>@company.Phone1</td>
+                                    <td><span class="badge badge-success">@company.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="form-card">
+            <h3 class="form-section-title">Sales Engineers Performance</h3>
+            @if (salesEngineers.Count == 0)
+            {
+                <p class="text-muted">No sales engineers available.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Roles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var se in salesEngineers)
+                            {
+                                <tr>
+                                    <td><strong>@se.FullName</strong></td>
+                                    <td>@se.MailId</td>
+                                    <td>@se.Department</td>
+                                    <td><span class="badge @(se.Status == "Active" ? "badge-success" : "badge-danger")">@se.Status</span></td>
+                                    <td>@string.Join(", ", se.Roles ?? new List<string>())</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int totalEnquiries = 0;
+    private int pendingQuotations = 0;
+    private int activeCompanies = 0;
+    private int activeUsers = 0;
+    private DateTime? nextDueDate = null;
+    private List<dynamic> recentEnquiries = new();
+    private List<dynamic> topCustomers = new();
+    private List<dynamic> salesEngineers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load dashboard data
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            // Simulating data load - in production, this would call your Supabase service
+            totalEnquiries = 24;
+            pendingQuotations = 8;
+            activeCompanies = 4;
+            activeUsers = 2;
+            nextDueDate = DateTime.Now.AddDays(5);
+
+            // Mock data for recent enquiries
+            recentEnquiries = new()
+            {
+                new { RequestNo = "EYS/2025/11/001", ClientName = "Customer X Ltd", EnquiryDate = DateTime.Now.AddDays(-5), Status = "Enquiry" },
+                new { RequestNo = "EYS/2025/11/002", ClientName = "Customer Y Corp", EnquiryDate = DateTime.Now.AddDays(-3), Status = "Quotation" },
+                new { RequestNo = "EYS/2025/11/003", ClientName = "Client Z Inc", EnquiryDate = DateTime.Now.AddDays(-1), Status = "Enquiry" }
+            };
+
+            // Mock data for top customers
+            topCustomers = new()
+            {
+                new { CompanyName = "Customer X Ltd", Category = "Contractor", Phone1 = "222", Status = "Active" },
+                new { CompanyName = "Customer Y Corp", Category = "Contractor", Phone1 = "555", Status = "Active" },
+                new { CompanyName = "Client Z Inc", Category = "Client", Phone1 = "888", Status = "Active" }
+            };
+
+            // Mock data for sales engineers
+            salesEngineers = new()
+            {
+                new { FullName = "SE1 - John Doe", MailId = "se1@comp.com", Department = "MEP", Status = "Active", Roles = new List<string> { "Enquiry", "Quotation" } },
+                new { FullName = "SE2 - Jane Smith", MailId = "se2@comp.com", Department = "MEP", Status = "Active", Roles = new List<string> { "Enquiry", "Admin" } }
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+}
